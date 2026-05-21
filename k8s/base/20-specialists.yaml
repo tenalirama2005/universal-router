@@ -1,0 +1,270 @@
+# k8s/base/20-specialists.yaml
+# Five specialists, ClusterIP-only. None are exposed externally; only the
+# router can reach them. NetworkPolicy below enforces this even if a
+# specialist is misconfigured.
+#
+# Image tags are placeholders — replace each with the existing DockerHub
+# tag you're already running for that specialist (your tenalirama2026/*
+# pattern). The point of this manifest is the K8s topology; the images
+# themselves are unchanged from your current Sprint 4 deployments.
+
+# ── CyberGym (vuln-repro) ────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cybergym-specialist
+  namespace: agentx-purple
+  labels:
+    app: cybergym-specialist
+    capability: vuln-repro
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cybergym-specialist
+  template:
+    metadata:
+      labels:
+        app: cybergym-specialist
+        capability: vuln-repro
+    spec:
+      containers:
+        - name: cybergym
+          # Replace with your current CyberGym v82 image tag.
+          image: tenalirama2026/cybergym-agentx-v2:v82
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 9019
+          env:
+            - name: PORT
+              value: "9019"
+            - name: CYBERGYM_MODEL_PRIORITY
+              value: "gpt-5.5,gpt-5.4"
+            - name: CYBERGYM_MIN_COMPLETION_TOKENS
+              value: "20"
+            - name: CYBERGYM_PATCH_WINDOWS
+              value: "1"
+          envFrom:
+            - secretRef:
+                name: azure-openai-creds
+          resources:
+            requests: { cpu: "200m", memory: "512Mi" }
+            limits:   { cpu: "1000m", memory: "2Gi" }
+          # /work scratchspace — emptyDir so each pod restart starts clean.
+          volumeMounts:
+            - name: work
+              mountPath: /work
+      volumes:
+        - name: work
+          emptyDir:
+            sizeLimit: 4Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cybergym-specialist
+  namespace: agentx-purple
+spec:
+  type: ClusterIP
+  selector:
+    app: cybergym-specialist
+  ports:
+    - port: 9019
+      targetPort: 9019
+---
+# ── Pi-Bench (policy-tooluse) ────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pibench-specialist
+  namespace: agentx-purple
+  labels:
+    app: pibench-specialist
+    capability: policy-tooluse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pibench-specialist
+  template:
+    metadata:
+      labels:
+        app: pibench-specialist
+        capability: policy-tooluse
+    spec:
+      containers:
+        - name: pibench
+          image: tenalirama2026/pibench-agentx:v49
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8766
+          env:
+            - name: PORT
+              value: "8766"
+          envFrom:
+            - secretRef:
+                name: azure-openai-creds
+          resources:
+            requests: { cpu: "100m", memory: "256Mi" }
+            limits:   { cpu: "500m", memory: "1Gi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pibench-specialist
+  namespace: agentx-purple
+spec:
+  type: ClusterIP
+  selector:
+    app: pibench-specialist
+  ports:
+    - port: 8766
+      targetPort: 8766
+---
+# ── NetArena (text-codegen) ──────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: netarena-specialist
+  namespace: agentx-purple
+  labels:
+    app: netarena-specialist
+    capability: text-codegen
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: netarena-specialist
+  template:
+    metadata:
+      labels:
+        app: netarena-specialist
+        capability: text-codegen
+    spec:
+      containers:
+        - name: netarena
+          image: tenalirama2026/netarena-agentx:v26
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 9019
+          env:
+            - name: PORT
+              value: "9019"
+          envFrom:
+            - secretRef:
+                name: azure-openai-creds
+          resources:
+            requests: { cpu: "100m", memory: "256Mi" }
+            limits:   { cpu: "500m", memory: "1Gi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: netarena-specialist
+  namespace: agentx-purple
+spec:
+  type: ClusterIP
+  selector:
+    app: netarena-specialist
+  ports:
+    - port: 9019
+      targetPort: 9019
+---
+# ── FWA (vision-qa) ──────────────────────────────────────────────────────────
+# Image tag and port verified against your current FWA Sprint 4 deployment.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fwa-specialist
+  namespace: agentx-purple
+  labels:
+    app: fwa-specialist
+    capability: vision-qa
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fwa-specialist
+  template:
+    metadata:
+      labels:
+        app: fwa-specialist
+        capability: vision-qa
+    spec:
+      containers:
+        - name: fwa
+          image: tenalirama2026/fwa-agentx:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8090
+          env:
+            - name: PORT
+              value: "8090"
+          envFrom:
+            - secretRef:
+                name: azure-openai-creds
+          resources:
+            requests: { cpu: "200m", memory: "512Mi" }
+            limits:   { cpu: "1000m", memory: "2Gi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fwa-specialist
+  namespace: agentx-purple
+spec:
+  type: ClusterIP
+  selector:
+    app: fwa-specialist
+  ports:
+    - port: 8090
+      targetPort: 8090
+---
+# ── OSWorld (gui-agent) ──────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: osworld-specialist
+  namespace: agentx-purple
+  labels:
+    app: osworld-specialist
+    capability: gui-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: osworld-specialist
+  template:
+    metadata:
+      labels:
+        app: osworld-specialist
+        capability: gui-agent
+    spec:
+      containers:
+        - name: osworld
+          image: tenalirama2026/osworld-agentx:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+          envFrom:
+            - secretRef:
+                name: azure-openai-creds
+          resources:
+            requests: { cpu: "200m", memory: "512Mi" }
+            limits:   { cpu: "1000m", memory: "2Gi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: osworld-specialist
+  namespace: agentx-purple
+spec:
+  type: ClusterIP
+  selector:
+    app: osworld-specialist
+  ports:
+    - port: 8080
+      targetPort: 8080

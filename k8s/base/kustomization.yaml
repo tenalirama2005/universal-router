@@ -1,0 +1,23 @@
+# k8s/base/kustomization.yaml
+# Apply with:
+#   kubectl apply -k k8s/base/
+#
+# Note: the Secret manifest is intentionally excluded so that the cluster's
+# real credentials never live in git. Create it imperatively first (see
+# 05-secret-template.yaml for the command).
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: agentx-purple
+
+resources:
+  - 00-namespace-and-config.yaml
+  - 10-router.yaml
+  - 20-specialists.yaml
+  - 30-network-policy.yaml
+  - 40-istio-gateway.yaml
+
+commonLabels:
+  team: for-the-cloud-by-the-cloud
+  sprint: phase2-sprint4

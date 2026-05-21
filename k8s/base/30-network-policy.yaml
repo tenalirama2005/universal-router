@@ -1,0 +1,63 @@
+# k8s/base/30-network-policy.yaml
+# Defense in depth: even if a specialist accidentally exposed itself via a
+# wrong Service type, NetworkPolicy at the Cilium layer would still block
+# external traffic from reaching it.
+#
+# Two rules:
+#   1. Specialists accept ingress ONLY from the router pod.
+#   2. The router accepts ingress from the Istio ingress gateway.
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: specialists-allow-router-only
+  namespace: agentx-purple
+spec:
+  # Apply to every pod labeled as a specialist (note plural — all 5).
+  podSelector:
+    matchExpressions:
+      - key: capability
+        operator: In
+        values: ["vuln-repro", "policy-tooluse", "text-codegen", "vision-qa", "gui-agent"]
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: router
+      # No port restriction — each specialist listens on a different port
+      # and the router uses the correct one via ConfigMap config.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: router-allow-gateway-ingress
+  namespace: agentx-purple
+spec:
+  podSelector:
+    matchLabels:
+      app: router
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # Istio ingress gateway lives in istio-system by convention.
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+      ports:
+        - protocol: TCP
+          port: 9000
+---
+# Default-deny everything else in the namespace. Anything not explicitly
+# allowed above gets dropped.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: agentx-purple
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress

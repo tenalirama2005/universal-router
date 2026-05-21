@@ -1,0 +1,34 @@
+# k8s/base/00-namespace.yaml
+# Dedicated namespace so Istio injection and NetworkPolicy can be scoped tightly.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: agentx-purple
+  labels:
+    # Istio sidecar auto-injection — gives us mTLS between router and specialists
+    # for free, plus per-service telemetry without code changes.
+    istio-injection: enabled
+    # eBPF/Cilium policy enforcement scope.
+    pod-security.kubernetes.io/enforce: baseline
+    name: agentx-purple
+---
+# k8s/base/01-configmap-upstreams.yaml
+# Capability-name → ClusterIP service URL mapping. The router binary itself
+# stays benchmark-agnostic; this ConfigMap is where the mapping lives. Future
+# track additions = add a Service + a ConfigMap key, no router code change.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: router-upstreams
+  namespace: agentx-purple
+data:
+  # ClusterIP DNS names — only resolvable inside the cluster.
+  # Format: http://<service-name>.<namespace>.svc.cluster.local:<port>
+  # The shortened form (http://<service-name>:<port>) works for same-namespace
+  # lookups and is what we use here for readability.
+  UPSTREAM_VULN_REPRO: "http://cybergym-specialist:9019"
+  UPSTREAM_POLICY_TOOLUSE: "http://pibench-specialist:8766"
+  UPSTREAM_TEXT_CODEGEN: "http://netarena-specialist:9019"
+  UPSTREAM_VISION_QA: "http://fwa-specialist:8090"
+  UPSTREAM_GUI_AGENT: "http://osworld-specialist:8080"
+  RUST_LOG: "info"

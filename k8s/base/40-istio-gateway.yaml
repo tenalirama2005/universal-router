@@ -1,0 +1,79 @@
+# k8s/base/40-istio-gateway.yaml
+# External entry point. AgentBeats hits the hostname here; Istio's ingress
+# gateway routes traffic to the router service inside the cluster. Specialists
+# have no route from outside — there is no VirtualService for them.
+
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: agentx-gateway
+  namespace: agentx-purple
+spec:
+  selector:
+    # Standard Istio default — adjust if your install uses a different
+    # gateway selector (e.g. istio: ingressgateway-public).
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      hosts:
+        - "agentx.forthecloudbythecloud.in"  # the AgentBeats-facing hostname
+      tls:
+        mode: SIMPLE
+        # Cert source: cert-manager-managed Secret in istio-system.
+        # If you're not using cert-manager, point this at a manually-created
+        # Secret containing your TLS material.
+        credentialName: agentx-tls-cert
+    # HTTP-only redirect to HTTPS. AgentBeats should use https from the start;
+    # this is just defensive.
+    - port:
+        number: 80
+        name: http-redirect
+        protocol: HTTP
+      hosts:
+        - "agentx.forthecloudbythecloud.in"
+      tls:
+        httpsRedirect: true
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: router-route
+  namespace: agentx-purple
+spec:
+  hosts:
+    - "agentx.forthecloudbythecloud.in"
+  gateways:
+    - agentx-gateway
+  http:
+    - match:
+        # AgentBeats hits POST /, /a2a/tasks/send, GET /.well-known/agent-card.json,
+        # GET /health. All of those just go to the router.
+        - uri:
+            prefix: /
+      route:
+        - destination:
+            host: router.agentx-purple.svc.cluster.local
+            port:
+              number: 80
+      # Generous timeout — CyberGym iterates for up to MAX_ITER × 600s in
+      # worst case. Pick something larger than what the slowest specialist
+      # needs end-to-end, plus headroom.
+      timeout: 1800s
+      retries:
+        attempts: 0  # No retries on POST — A2A tasks may have side effects on
+                     # the green agent side (e.g. CyberGym test_vulnerable
+                     # actually runs the PoC). Idempotency is not guaranteed.
+---
+# Optional but recommended: PeerAuthentication enforcing mTLS for the
+# whole namespace. Sidecar-to-sidecar traffic gets encrypted automatically.
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: agentx-purple
+spec:
+  mtls:
+    mode: STRICT
