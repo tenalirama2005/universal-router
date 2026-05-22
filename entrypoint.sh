@@ -35,7 +35,36 @@ if [ "$HEALTHY" -ne 1 ]; then
     exit 1
 fi
 
+OSWORLD_PORT="${OSWORLD_PORT:-8080}"
+echo "[entrypoint] starting agentx-osworld on :${OSWORLD_PORT}..."
+(
+    export PORT="${OSWORLD_PORT}"
+    export AGENT_URL="http://127.0.0.1:${OSWORLD_PORT}"
+    export NEBIUS_API_KEY="${NEBIUS_API_KEY}"
+    export QWEN_API_BASE_URL="https://api.studio.nebius.com/v1"
+    export QWEN_MODEL="Qwen/Qwen2.5-VL-72B-Instruct"
+    export JEDI_API_BASE_URL="https://api.studio.nebius.com/v1"
+    export JEDI_MODEL="Qwen/Qwen2.5-VL-72B-Instruct"
+    exec /app/agentx-osworld
+) &
+OSWORLD_PID=$!
+
+RETRY=0; HEALTHY=0
+while [ $RETRY -lt 30 ]; do
+    BODY="$(wget -q -O - "http://127.0.0.1:${OSWORLD_PORT}/health" 2>/dev/null || true)"
+    if [ -n "$BODY" ]; then
+        echo "[entrypoint] agentx-osworld healthy after ${RETRY}s: ${BODY}"
+        HEALTHY=1; break
+    fi
+    RETRY=$((RETRY + 1)); sleep 1
+done
+if [ "$HEALTHY" -ne 1 ]; then
+    echo "[entrypoint] ERROR: agentx-osworld failed health check"
+    kill $OSWORLD_PID 2>/dev/null; exit 1
+fi
+
 echo "[entrypoint] starting universal-router on :${ROUTER_PORT}..."
 export PORT="${ROUTER_PORT}"
 export UPSTREAM_VULN_REPRO="http://127.0.0.1:${CYBERGYM_PORT}"
+export UPSTREAM_GUI_AGENT="http://127.0.0.1:${OSWORLD_PORT}"
 exec /app/universal-router

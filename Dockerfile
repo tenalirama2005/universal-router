@@ -17,6 +17,8 @@ FROM alpine:3.20
 RUN apk add --no-cache ca-certificates tini
 COPY --from=router-builder /build/target/x86_64-unknown-linux-musl/release/universal-router /app/universal-router
 COPY --from=cybergym-source /app/cybergym_agentx /app/cybergym_agentx
+COPY agentx-osworld /app/agentx-osworld
+RUN chmod +x /app/agentx-osworld
 RUN mkdir -p /work && chmod 755 /work
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
