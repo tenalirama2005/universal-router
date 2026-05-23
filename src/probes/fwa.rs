@@ -1,21 +1,18 @@
 // src/probes/fwa.rs
 // Capability: visual-document grounded question answering.
 //
-// STUB — fingerprints inferred from FWA Sprint 2/3 history (Qwen2.5-VL,
-// image inputs, question-answer task shape). Final scoring rules will be
-// tuned once a2a/handler.rs is shared and a real captured payload can be
-// inspected.
+// Discriminator (RDI-compliant — structural fingerprint, NO benchmark
+// names or task IDs):
 //
-// Expected structural fingerprints:
-//   - parts[] contains a file part with an image-shaped MIME type
-//     (image/png, image/jpeg) OR an image-shaped filename (.png/.jpg)
-//   - AND parts[] contains a text part carrying the question
-//   - parts[] does NOT contain archive files (that's vuln-repro) or
-//     OpenAI tool schemas (that's policy-tooluse)
+//   A vision-QA task is (image file part) + (text question part) and
+//   nothing else. It is single-shot QA over a visual document.
 //
-// The combination of (image file part) + (text question part) is the
-// generalizable shape — any visual-document QA benchmark fits this.
-// We do NOT match on "FWA", FieldWorkArena URLs, or task IDs.
+//   This shape OVERLAPS with a GUI-automation task, which also carries an
+//   image + text. To avoid claiming GUI work, this probe YIELDS (score 0)
+//   the moment it sees the structural GUI fingerprint: a DataPart with an
+//   `env_config` / `action_space` desktop-control contract, or a desktop
+//   observation channel (accessibility_tree / terminal). Same defensive
+//   pattern already used to yield archive files to vuln-repro.
 
 use serde_json::Value;
 use crate::probe::{CapabilityProbe, Upstream};
@@ -28,6 +25,21 @@ impl FwaProbe {
     pub fn new(upstream: Upstream) -> Self {
         Self { upstream }
     }
+}
+
+/// GUI desktop-control fingerprint — if present, this is gui-agent work,
+/// not vision-QA. Kept in sync with osworld.rs.
+fn has_gui_fingerprint(data: &Value) -> bool {
+    let action_space = |obj: &Value| obj.get("action_space").is_some();
+    if let Some(env) = data.get("env_config") {
+        if action_space(env) {
+            return true;
+        }
+    }
+    action_space(data)
+        || data.get("accessibility_tree").is_some()
+        || data.get("a11y_tree").is_some()
+        || data.get("terminal").is_some()
 }
 
 impl CapabilityProbe for FwaProbe {
@@ -46,6 +58,7 @@ impl CapabilityProbe for FwaProbe {
         let mut has_image = false;
         let mut has_text = false;
         let mut has_archive = false;
+        let mut has_gui = false;
 
         for part in parts {
             let p = part.get("root").unwrap_or(part);
@@ -81,6 +94,14 @@ impl CapabilityProbe for FwaProbe {
                 }
             }
 
+            if kind == "data" {
+                if let Some(data) = p.get("data") {
+                    if has_gui_fingerprint(data) {
+                        has_gui = true;
+                    }
+                }
+            }
+
             if kind == "text"
                 && p.get("text")
                     .and_then(|t| t.as_str())
@@ -93,6 +114,9 @@ impl CapabilityProbe for FwaProbe {
 
         if has_archive {
             return 0.0; // vuln-repro territory
+        }
+        if has_gui {
+            return 0.0; // gui-agent territory — do not claim it
         }
 
         match (has_image, has_text) {

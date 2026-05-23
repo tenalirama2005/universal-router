@@ -203,6 +203,40 @@ async fn handle_task(State(state): State<Arc<AppState>>, body: Bytes) -> Respons
         }
     };
 
+    // DEBUG: dump structural skeleton of incoming request so the next run's
+    // log reveals the real OSWorld vs FWA payload shape. Keys + part kinds
+    // only — not full content — to keep the log readable and avoid dumping
+    // base64 image blobs.
+    if let Some(msg) = parsed.pointer("/params/message") {
+        let part_kinds: Vec<String> = msg
+            .pointer("/parts")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .map(|p| {
+                        let r = p.get("root").unwrap_or(p);
+                        r.get("kind").and_then(|k| k.as_str()).unwrap_or("?").to_string()
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        let has_history = parsed.pointer("/params/message/history").is_some()
+            || parsed.pointer("/params/history").is_some();
+        let ctx_id = parsed
+            .pointer("/params/message/contextId")
+            .or_else(|| parsed.pointer("/params/contextId"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("<none>");
+        info!(
+            "[router] payload skeleton: part_kinds={:?} has_history={} contextId={} top_keys={:?}",
+            part_kinds,
+            has_history,
+            ctx_id,
+            parsed.get("params").and_then(|p| p.as_object())
+                .map(|o| o.keys().cloned().collect::<Vec<_>>()).unwrap_or_default()
+        );
+    }
+    
     // Score every probe.
     let mut scored: Vec<(f32, &dyn CapabilityProbe)> = state
         .probes
