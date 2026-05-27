@@ -1,5 +1,5 @@
 # universal-router Sprint 4 — multi-process container
-# Runs universal-router on :9000 + cybergym_agentx (v83) on :9019 internally.
+# Runs universal-router on :9009 + cybergym_agentx (v84) on :9019 internally.
 
 # Stage 1: build universal-router
 FROM rust:1.94-alpine AS router-builder
@@ -10,7 +10,7 @@ COPY src ./src
 RUN cargo build --release --target x86_64-unknown-linux-musl
 
 # Stage 2: source for cybergym_agentx binary
-FROM tenalirama2026/cybergym-agentx:v83 AS cybergym-source
+FROM tenalirama2026/cybergym-agentx:v84 AS cybergym-source
 
 # Stage 3: final runtime
 FROM alpine:3.20
@@ -22,5 +22,5 @@ RUN chmod +x /app/agentx-osworld
 RUN mkdir -p /work && chmod 755 /work
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
-EXPOSE 9000
+EXPOSE 9009
 ENTRYPOINT ["/sbin/tini", "--", "/app/entrypoint.sh"]

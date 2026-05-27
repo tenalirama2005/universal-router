@@ -1,13 +1,13 @@
 #!/bin/sh
-# Multi-process entrypoint: cybergym_agentx on :9019, then router on :9000.
+# Multi-process entrypoint: cybergym_agentx on :9019, then router on :9009.
 # NOTE: uses 127.0.0.1 (explicit IPv4) — in Alpine, "localhost" resolves to
 # IPv6 ::1, but cybergym_agentx binds IPv4 0.0.0.0 only.
 set -e
 
-ROUTER_PORT="${ROUTER_PORT:-9000}"
+ROUTER_PORT="${ROUTER_PORT:-9009}"
 CYBERGYM_PORT="${CYBERGYM_PORT:-9019}"
 
-echo "[entrypoint] starting cybergym_agentx (v83) on :${CYBERGYM_PORT}..."
+echo "[entrypoint] starting cybergym_agentx (v84) on :${CYBERGYM_PORT}..."
 (
     export PORT="${CYBERGYM_PORT}"
     export AGENT_URL="http://127.0.0.1:${CYBERGYM_PORT}"
@@ -41,9 +41,9 @@ echo "[entrypoint] starting agentx-osworld on :${OSWORLD_PORT}..."
     export PORT="${OSWORLD_PORT}"
     export AGENT_URL="http://127.0.0.1:${OSWORLD_PORT}"
     export NEBIUS_API_KEY="${NEBIUS_API_KEY}"
-    export QWEN_API_BASE_URL="https://api.tokenfactory.nebius.com/v1"
+    export QWEN_API_BASE_URL="https://api.studio.nebius.com/v1"
     export QWEN_MODEL="Qwen/Qwen2.5-VL-72B-Instruct"
-    export JEDI_API_BASE_URL="https://api.tokenfactory.nebius.com/v1"
+    export JEDI_API_BASE_URL="https://api.studio.nebius.com/v1"
     export JEDI_MODEL="Qwen/Qwen2.5-VL-72B-Instruct"
     exec /app/agentx-osworld
 ) &
