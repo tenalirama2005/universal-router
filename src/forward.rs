@@ -71,6 +71,7 @@ pub async fn forward(
     match upstream.response_shape {
         ResponseShape::Sse => forward_sse(resp, probe_name),
         ResponseShape::Json => forward_json(resp, probe_name).await,
+        ResponseShape::JsonAsSse => forward_json_as_sse(resp, probe_name).await,
     }
 }
 
@@ -116,6 +117,33 @@ async fn forward_json(resp: reqwest::Response, probe_name: &'static str) -> Resp
     headers.insert("connection", "close".parse().unwrap());
 
     (StatusCode::OK, headers, body).into_response()
+}
+
+async fn forward_json_as_sse(resp: reqwest::Response, probe_name: &'static str) -> Response {
+    // OSWorld green calls send_message_streaming and expects
+    // text/event-stream. The agentx-osworld backend returns a single
+    // JSON-RPC object whose result is a completed Task — a valid
+    // terminal event. Wrap that JSON as one SSE frame.
+    let body = match resp.bytes().await {
+        Ok(b) => b,
+        Err(e) => {
+            warn!("[router] json-as-sse body read failed probe={} err={}", probe_name, e);
+            return error_json(
+                StatusCode::BAD_GATEWAY,
+                format!("Upstream {} body read failed: {}", probe_name, e),
+            );
+        }
+    };
+    let json_text = String::from_utf8_lossy(&body);
+    let frame = format!("data: {}\n\n", json_text.trim());
+
+    let mut headers = HeaderMap::new();
+    headers.insert("content-type", "text/event-stream".parse().unwrap());
+    headers.insert("cache-control", "no-cache".parse().unwrap());
+    headers.insert("x-accel-buffering", "no".parse().unwrap());
+    headers.insert("x-router-probe", probe_name.parse().unwrap());
+
+    (StatusCode::OK, headers, frame).into_response()
 }
 
 pub fn error_json(status: StatusCode, msg: String) -> Response {

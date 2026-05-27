@@ -14,12 +14,22 @@
 
 use serde_json::Value;
 
+/*#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ResponseShape {
+    /// Returns a Server-Sent Events stream (text/event-stream).
+    Sse,
+    /// Returns a single JSON body.
+    Json,
+}*/
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResponseShape {
     /// Returns a Server-Sent Events stream (text/event-stream).
     Sse,
     /// Returns a single JSON body.
     Json,
+    /// Upstream returns a single JSON body; router wraps it as one SSE event.
+    JsonAsSse,
 }
 
 #[derive(Debug, Clone)]

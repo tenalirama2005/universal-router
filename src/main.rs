@@ -101,7 +101,7 @@ async fn main() {
         Box::new(probes::osworld::OsworldProbe::new(Upstream {
             url: std::env::var("UPSTREAM_GUI_AGENT")
                 .unwrap_or_else(|_| "http://osworld-agentx:8080".into()),
-            response_shape: ResponseShape::Json,
+            response_shape: ResponseShape::JsonAsSse,
         })),
     ];
 

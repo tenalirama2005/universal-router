@@ -4,7 +4,7 @@
     proxy: { kind: "a2a", optional: true },
   },
   program: {
-    image: "tenalirama2026/universal-router@sha256:0f630fd3021b9656547be1035071c956c1a20b20dff95aaaa897a8bfe714f2a3",
+    image: "tenalirama2026/universal-router@sha256:af1db09d5bcba399270bff412b07a602d2b2b88bff6869140fd571214b188eb0",
     entrypoint: "/app/entrypoint.sh",
     env: {
       ROUTER_PORT: "9009",
