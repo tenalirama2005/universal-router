@@ -1,0 +1,39 @@
+{
+  manifest_version: "0.1.0",
+  slots: {
+    proxy: { kind: "a2a", optional: true },
+  },
+  program: {
+    image: "tenalirama2026/universal-router@sha256:af1db09d5bcba399270bff412b07a602d2b2b88bff6869140fd571214b188eb0",
+    entrypoint: "/app/entrypoint.sh",
+    env: {
+      ROUTER_PORT: "9009",
+      CYBERGYM_PORT: "9019",
+      OPENAI_API_KEY: "${config.openai_api_key}",
+      CYBERGYM_MODEL_PRIORITY: "gpt-5.5,gpt-5.4",
+      CYBERGYM_MIN_COMPLETION_TOKENS: "20",
+      CYBERGYM_PATCH_WINDOWS: "1",
+      NEBIUS_API_KEY: "${config.nebius_api_key}",
+    },
+    network: {
+      endpoints: [
+        { name: "a2a_endpoint", port: 9009 },
+      ],
+    },
+  },
+  config_schema: {
+    type: "object",
+    properties: {
+      openai_api_key: { type: "string", secret: true },
+      nebius_api_key: { type: "string", secret: true },
+    },
+    required: ["openai_api_key"],
+    additionalProperties: false,
+  },
+  provides: {
+    a2a: { kind: "a2a", endpoint: "a2a_endpoint" },
+  },
+  exports: {
+    a2a: "a2a",
+  },
+}

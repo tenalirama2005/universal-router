@@ -1,19 +1,45 @@
+// universal-router v4 — adds Pi-Bench (policy-tooluse) and MALT (text-codegen)
+// specialists alongside existing CyberGym and OSWorld. Each backend uses its
+// own Azure OpenAI resource; the manifest exposes both keys as distinct
+// config secrets.
+//
+// Image digest is pinned to the linux/amd64 manifest of v4. To update after
+// pushing a new version: replace the sha256 below with the new per-platform
+// digest from `docker buildx imagetools inspect tenalirama2026/universal-router:vN`.
+//
 {
   manifest_version: "0.1.0",
   slots: {
     proxy: { kind: "a2a", optional: true },
   },
   program: {
-    image: "tenalirama2026/universal-router@sha256:af1db09d5bcba399270bff412b07a602d2b2b88bff6869140fd571214b188eb0",
+    image: "tenalirama2026/universal-router@sha256:74b808807fdad12bf3e3d81d2692bdf73520bb4242e075ff9326dda98764fc44",
     entrypoint: "/app/entrypoint.sh",
     env: {
+      // Router + internal ports
       ROUTER_PORT: "9009",
       CYBERGYM_PORT: "9019",
+      OSWORLD_PORT: "8080",
+      PIBENCH_PORT: "9020",
+      MALT_PORT_INTERNAL: "9021",
+
+      // CyberGym (OpenAI direct)
       OPENAI_API_KEY: "${config.openai_api_key}",
       CYBERGYM_MODEL_PRIORITY: "gpt-5.5,gpt-5.4",
       CYBERGYM_MIN_COMPLETION_TOKENS: "20",
       CYBERGYM_PATCH_WINDOWS: "1",
+
+      // OSWorld (Nebius / NVIDIA)
       NEBIUS_API_KEY: "${config.nebius_api_key}",
+      NVIDIA_API_KEY: "${config.nvidia_api_key}",
+
+      // Pi-Bench — its own Azure OpenAI resource
+      PIBENCH_AZURE_OPENAI_KEY: "${config.pibench_azure_openai_key}",
+      PIBENCH_AZURE_OPENAI_ENDPOINT: "https://pi-bench-agentx-resource.cognitiveservices.azure.com/",
+
+      // MALT / NetArena — its own Azure OpenAI resource
+      MALT_AZURE_OPENAI_KEY: "${config.malt_azure_openai_key}",
+      MALT_AZURE_OPENAI_ENDPOINT: "https://malt-agentx-resource.cognitiveservices.azure.com/",
     },
     network: {
       endpoints: [
@@ -24,8 +50,11 @@
   config_schema: {
     type: "object",
     properties: {
-      openai_api_key: { type: "string", secret: true },
-      nebius_api_key: { type: "string", secret: true },
+      openai_api_key:                { type: "string", secret: true },
+      nebius_api_key:                { type: "string", secret: true },
+      nvidia_api_key:                { type: "string", secret: true },
+      pibench_azure_openai_key:      { type: "string", secret: true },
+      malt_azure_openai_key:         { type: "string", secret: true },
     },
     required: ["openai_api_key"],
     additionalProperties: false,
