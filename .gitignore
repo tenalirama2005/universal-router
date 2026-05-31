@@ -1,3 +1,6 @@
 target/
 agentx-osworld
 build.log
+
+# fwa-agentx source copy for in-container build (v5.1)
+fwa-agentx-src/
