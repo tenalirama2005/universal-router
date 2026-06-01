@@ -14,7 +14,7 @@
   },
   program: {
     // PLACEHOLDER — replace with v5 digest after push:
-    image: "tenalirama2026/universal-router@sha256:ee8957844dd40a2ed66a96c3fd8759d56f81d9d4fd91504f00a0a0879a9d79ac",
+    image: "tenalirama2026/universal-router@sha256:7b309b4dcfeccbac2b4815b2dd9bfe68b991d062935d471d5c387741a8545068",
     entrypoint: "/app/entrypoint.sh",
     env: {
       // Router + internal ports
