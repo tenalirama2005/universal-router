@@ -1,11 +1,11 @@
-// universal-router v5 — adds FieldWorkArena (vision-QA) specialist as the
-// 5th bundled backend, alongside CyberGym, OSWorld, Pi-Bench, MALT.
+// universal-router v6 — adds FieldWorkArena (vision-QA) specialist as the
+// 6th bundled backend, alongside CyberGym, OSWorld, Pi-Bench, MALT.
 // FWA uses OpenAI direct (GPT-5.4) — reuses the same OPENAI_API_KEY that
 // CyberGym already takes; no new secrets required.
 //
 // IMPORTANT: After `docker build` + `docker push`, replace the sha256 below
 // with the new per-platform digest:
-//   docker buildx imagetools inspect tenalirama2026/universal-router:v5
+//   docker buildx imagetools inspect tenalirama2026/universal-router:v6
 //
 {
   manifest_version: "0.1.0",
@@ -13,8 +13,8 @@
     proxy: { kind: "a2a", optional: true },
   },
   program: {
-    // PLACEHOLDER — replace with v5 digest after push:
-    image: "tenalirama2026/universal-router@sha256:7b309b4dcfeccbac2b4815b2dd9bfe68b991d062935d471d5c387741a8545068",
+    // PLACEHOLDER — replace with v6 digest after push:
+    image: "tenalirama2026/universal-router@sha256:8ca01d0790184b61d5bd3502193f7e6bafffadfb5a8d10ebb7870ed4e73d7c37",
     entrypoint: "/app/entrypoint.sh",
     env: {
       // Router + internal ports
