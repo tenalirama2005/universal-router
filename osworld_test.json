@@ -1,0 +1,18 @@
+{
+  "jsonrpc": "2.0",
+  "id": "test-osworld-1",
+  "method": "message/stream",
+  "params": {
+    "message": {
+      "kind": "message",
+      "role": "user",
+      "messageId": "msg-test-1",
+      "contextId": "ctx-test-1",
+      "parts": [
+        { "kind": "text", "text": "Open the file manager and create a folder named Reports." },
+        { "kind": "data", "data": { "env_config": { "action_space": "pyautogui", "observation_type": "screenshot" } } },
+        { "kind": "file", "file": { "bytes": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "mimeType": "image/png" } }
+      ]
+    }
+  }
+}

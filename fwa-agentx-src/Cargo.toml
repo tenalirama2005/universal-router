@@ -1,0 +1,62 @@
+[package]
+name = "fwa-agentx"
+version = "0.1.0"
+edition = "2021"
+description = "FieldWorkArena purple agent — Rust port of fba_agent.py for AgentX Sprint 4"
+license = "Apache-2.0"
+
+[dependencies]
+# ── Async runtime + HTTP server ───────────────────────────────────────────────
+tokio = { version = "1", features = ["full"] }
+axum = "0.8"
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+
+# ── HTTP client for model APIs (DeepInfra, Nebius, OpenAI) ────────────────────
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls", "rustls-native-certs", "http2", "stream"] }
+
+# ── Serialization ─────────────────────────────────────────────────────────────
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# ── CLI + env ─────────────────────────────────────────────────────────────────
+clap = { version = "4", features = ["derive"] }
+dotenvy = "0.15"
+
+# ── Image processing (pure Rust — no system OpenCV needed) ────────────────────
+image = "0.25"
+imageproc = "0.25"
+
+# ── PDF text extraction ───────────────────────────────────────────────────────
+pdf-extract = "0.9"
+
+# ── Base64 (inline image data in A2A parts) ───────────────────────────────────
+base64 = "0.22"
+
+# ── UUID (context/task IDs) ───────────────────────────────────────────────────
+uuid = { version = "1", features = ["v4"] }
+
+# ── Async + bytes ─────────────────────────────────────────────────────────────
+futures = "0.3"
+bytes = "1"
+
+# ── Error handling ────────────────────────────────────────────────────────────
+anyhow = "1"
+tempfile = "3"
+thiserror = "1"
+
+# ── Regex (answer extraction, task-ID parsing — same patterns as Python) ──────
+regex = "1"
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
+
+[[bin]]
+name = "fwa-agentx"
+path = "src/main.rs"

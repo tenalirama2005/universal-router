@@ -1,156 +1,128 @@
-# Universal Purple Agent Router
+# Universal Router
 
-Sprint 4 submission for AgentX-AgentBeats Phase 2. One purple agent surface,
-five capability backends, capability-shape dispatch.
+**One purple agent across all five Berkeley RDI AgentBeats Phase 2 benchmark tracks.** A single Rust/[axum](https://github.com/tokio-rs/axum) routing agent, registered against every green, that inspects each incoming task, dispatches it to the right domain specialist, and returns the result — proving generality empirically rather than fielding five separate agents.
+
+Built for the AgentBeats Phase 2 grand finale (Sprint 4): CyberGym · Pi-Bench · NetArena MALT · FieldWorkArena · OSWorld.
+
+---
+
+## Why a router?
+
+Sprint 4 rewards generality — eligibility requires a purple agent registered on **5+ greens across 3+ categories**. The common approach is a bespoke agent per track. Universal Router takes the harder, more general path: the *same* agent, registered against all five greens, demonstrating that a single routing layer can span security reproduction, policy/tool-use, network configuration, vision QA, and GUI automation.
+
+This directly addresses the four judging axes:
+
+- **Generality** — one agent, five tracks, three+ categories.
+- **Leaderboard performance** — specialist backends tuned per track (results below).
+- **Cost efficiency** — static Rust binaries; one decisive high-ceiling run per track rather than repeated averaging.
+- **Technical quality** — reproducible multi-stage build, digest-pinned deploy, verify-before-submit discipline.
+
+---
 
 ## Architecture
 
-```
-                          ┌────────────────────────┐
-   AgentBeats green ───► HTTPS                       │
-   agents (any track)    │  Istio Gateway           │
-                         │  (TLS termination)        │
-                         └──────────┬───────────────┘
-                                    │ HTTP, mTLS via Istio sidecars
-                                    ▼
-                         ┌────────────────────────┐
-                         │  Router (replicas: 2)   │
-                         │  ─ scores 5 probes      │
-                         │  ─ forwards verbatim    │
-                         └──────────┬───────────────┘
-                                    │
-                ┌───────────┬───────┼───────┬───────────┐
-                ▼           ▼       ▼       ▼           ▼
-            ┌───────┐  ┌───────┐ ┌─────┐ ┌─────┐ ┌─────────┐
-            │ vuln- │  │policy-│ │text-│ │vis- │ │ gui-    │
-            │ repro │  │tooluse│ │codeg│ │ion- │ │ agent   │
-            │ (Cyber│  │(Pi-   │ │(Net-│ │qa   │ │ (OS-    │
-            │  Gym) │  │ Bench)│ │Arena│ │(FWA)│ │  World) │
-            └───────┘  └───────┘ └─────┘ └─────┘ └─────────┘
-                       ClusterIP services only — not externally reachable.
+```mermaid
+flowchart TD
+    A[A2A JSON-RPC task] --> R{Universal Router<br/>capability probe}
+    R -->|vuln-repro| CG[CyberGym specialist]
+    R -->|policy-tooluse| PB[Pi-Bench specialist]
+    R -->|text-codegen| NA[NetArena MALT specialist]
+    R -->|vision-qa| FWA[FieldWorkArena specialist]
+    R -->|gui-agent| OSW[OSWorld specialist]
+    CG --> OUT[result]
+    PB --> OUT
+    NA --> OUT
+    FWA --> OUT
+    OSW --> OUT
 ```
 
-## Routing decision: structural probe scoring
+A thin axum front door receives A2A tasks on the public port and forwards each to one of five specialist backends, selected by a **capability probe** over the task content:
 
-The router does not match on benchmark names, task IDs, or content keywords.
-Each `CapabilityProbe` scores an incoming A2A request against the *shape* of
-work its backend handles — file types, schema fingerprints, payload
-structure — and the router forwards to the argmax probe above a confidence
-threshold (0.35).
+| Capability     | Specialist        | Track           | Model backend |
+|----------------|-------------------|-----------------|---------------|
+| `vuln-repro`   | cybergym-agentx   | CyberGym        | OpenAI GPT-5.5 (primary) / GPT-5.4 (fallback) |
+| `policy-tooluse` | pibench-agentx  | Pi-Bench        | OpenAI GPT-5.5 (primary) / GPT-5.4 (fallback) |
+| `text-codegen` | netarena-agentx   | NetArena MALT   | Azure `gpt-5.4-mini` |
+| `vision-qa`    | fwa-agentx        | FieldWorkArena  | OpenAI GPT-5.4 (primary) / GPT-5.5 (fallback), multimodal |
+| `gui-agent`    | osworld-agentx    | OSWorld         | Qwen3.5 planner (Qwen2.5 fallback) + Jedi-7B grounder |
 
-Probes and their structural signals:
+**Content-only routing.** AgentBeats purple agents receive task data but *not* a task_id, so the router fingerprints each task from its payload alone — modalities present, instruction shape, tool schema — never from an identifier or lookup. This keeps dispatch fully general and compliant with the no-hardcoded-answers rule.
 
-| Capability         | Signal                                                              | Backend     |
-|--------------------|---------------------------------------------------------------------|-------------|
-| `vuln-repro`       | `parts[].file.name` ends `.tar.gz`/`.patch`/`.diff`, or `data.exit_code` present | CyberGym    |
-| `policy-tooluse`   | `parts[0].data.bootstrap=true` OR `data.{context_id,messages}` + OpenAI tools schema | Pi-Bench    |
-| `text-codegen`     | Text-only envelope with no other capability-specific signals (weak default) | NetArena    |
-| `vision-qa`        | `file.mimeType=image/*` + text part                                 | FWA         |
-| `gui-agent`        | Image + data part with `action_space`/`observation` schema          | OSWorld     |
+---
 
-If no probe scores above threshold, the router returns a 422 with an error
-rather than guessing — a misroute is worse than a refusal because it would
-pollute the leaderboard with a nonsense submission.
+## The five specialists
 
-## Compliance with Phase 2 Sprint 4 rules
+### CyberGym — vulnerability reproduction · **#1, peak score 19**
+Rust A2A agent that reads target source and patches to reproduce vulnerabilities, built around root-cause patch strategies (binary-format reading, seed injection, session-state fallback, hex-dumping, format-rejection detection). A `patch_windows` mode handles large files by windowing around the patched region. Calls OpenAI directly — GPT-5.5 (primary), GPT-5.4 (fallback) — with retry-and-backoff on 429/5xx for stability under parallel load. Green scoring is on container exit codes (vuln container fails, fix container passes) under a 10-second PoC timeout.
 
-The Phase 2 Sprint 4 brief requires that purple agents demonstrate
-generality "without benchmark-specific hardcoding or special-case lookup
-tables." This implementation satisfies that by:
+### Pi-Bench — policy execution & tool use · **#1, 90.1%**
+Compliance achieved through **pure prompt engineering** — no code-based outcome manipulation. Switching to GPT-5.5 (primary) / GPT-5.4 (fallback) drove the forbidden-attempt rate to 0%; a *no-tool-replay* instruction prevents re-calling already-executed tools, and explicit tool ordering handles AML/FINRA scenarios. Sub-scores: policy execution 93.9, policy boundaries 89.2, semantic 92.0.
 
-1. **Probes score on structural shape, not benchmark identity.** No probe
-   matches on the strings `"FWA"`, `"OSWorld"`, `"Pi-Bench"`, ARVO task IDs,
-   or any benchmark-name keyword. Signals are JSON Schema fingerprints,
-   MIME types, and field-presence checks.
+### NetArena MALT — network configuration · **#1, 60% correctness / 100% safety**
+`gpt-5.4-mini` via Azure. Two decisive fixes: rank outputs emitted as native `[name, float]` pairs (not stringified tuples), and the Azure model's requirement of `max_completion_tokens` rather than `max_tokens`.
 
-2. **Capability names, not benchmark names.** The router's agent-card lists
-   skills as `vuln-repro`, `policy-tooluse`, `text-codegen`, `vision-qa`,
-   `gui-agent` — verbs describing work shape. A new benchmark that fits
-   one of these shapes routes correctly without code changes.
+### FieldWorkArena — vision QA · **#2, 149.6 / 239**
+Rust multimodal A2A with sync and SSE streaming, on OpenAI GPT-5.4 (primary) / GPT-5.5 (fallback), extracting text, JPEG (via the `image` crate), PDF (`pdf-extract`), video frames (ffmpeg), and bounding-box metadata. The key accuracy lever was an answer policy of full-sentence restatement rather than terse factual replies, plus document-aware scoring for non-image envelopes. GLIBC portability handled by compiling inside a Debian-bookworm builder stage.
 
-3. **Upstream URL mapping lives in config, not code.** Adding a sixth
-   capability is: add a probe file, add a ConfigMap key, add a Service.
-   No router binary change required to support it.
+### OSWorld — GUI automation
+A **two-model** design: a Qwen3.5-397B reasoning planner (multimodal, via DeepInfra; Qwen2.5 fallback) decides the next UI action from the screenshot, and a self-hosted **Jedi-7B-1080p** grounder (served on a GPU via vLLM) converts that action into precise screen coordinates. The planner's reasoning budget is tuned (`max_tokens` 3000) so its chain-of-thought completes and the final action lands in `content` rather than being truncated.
 
-## Layout
+---
 
-```
-.
-├── Cargo.toml
-├── Dockerfile                        # multi-stage musl → distroless
-├── src/
-│   ├── main.rs                       # axum, scoring loop, agent-card
-│   ├── probe.rs                      # CapabilityProbe trait
-│   ├── forward.rs                    # SSE + JSON verbatim forwarding
-│   └── probes/
-│       ├── cybergym.rs
-│       ├── pibench.rs
-│       ├── netarena.rs
-│       ├── fwa.rs
-│       └── osworld.rs
-└── k8s/
-    └── base/
-        ├── 00-namespace-and-config.yaml
-        ├── 05-secret-template.yaml   # documented imperative create
-        ├── 10-router.yaml            # Deployment + Service, 2 replicas
-        ├── 20-specialists.yaml       # 5 Deployments + 5 ClusterIP Services
-        ├── 30-network-policy.yaml    # default-deny + explicit allows
-        ├── 40-istio-gateway.yaml     # Gateway + VirtualService + STRICT mTLS
-        └── kustomization.yaml
-```
+## Build & deploy
 
-## Deployment
+Single multi-stage Docker image assembling all five specialists. Each is a static **musl** binary — compiled in its build stage or copied pre-built from the build context (OSWorld) — for a portable, glibc-independent artifact.
 
 ```bash
-# 1. Build and push the router image.
-docker build -t tenalirama2026/agentx-purple-router:latest .
-docker push tenalirama2026/agentx-purple-router:latest
-
-# 2. Create the Azure OpenAI Secret (never committed).
-kubectl create secret generic azure-openai-creds \
-  --namespace agentx-purple \
-  --from-literal=AZURE_OPENAI_KEY="$AZURE_OPENAI_KEY" \
-  --from-literal=AZURE_OPENAI_ENDPOINT="$AZURE_OPENAI_ENDPOINT"
-
-# 3. Apply everything.
-kubectl apply -k k8s/base/
-
-# 4. Verify.
-kubectl -n agentx-purple get pods,svc,virtualservice
-kubectl -n agentx-purple logs deploy/router -f
+docker build -t tenalirama2026/universal-router:<ver> .
+docker push  tenalirama2026/universal-router:<ver>
+docker buildx imagetools inspect tenalirama2026/universal-router:<ver>   # capture digest
 ```
 
-## Verifying isolation
+Deployment is driven by **`amber-manifest.json5`** — the authoritative config, served from the repository's raw URL and pinning the image by `sha256` digest. Dockerfile `ENV` defaults are a safety net only; the manifest is source of truth.
 
-Specialists must not be reachable externally. From an off-cluster machine:
+### Verify-before-submit discipline
+Stale binaries are the enemy of a multi-stage build. Before every submission:
 
-```bash
-# Should TIMEOUT or 503 — there is no external route to the specialists.
-curl -m 5 https://agentx.forthecloudbythecloud.in/cybergym/health || echo "OK: blocked"
+1. `cargo clean && cargo build --release --target x86_64-unknown-linux-musl`
+2. `docker build`, then **verify inside the image** — `grep` the entrypoint config and `ls -la` the binary size. Never trust the build; verify the artifact.
+3. Confirm the **raw manifest digest matches the pushed image** before registering on AgentBeats.
 
-# Should succeed — the router is the only exposed surface.
-curl https://agentx.forthecloudbythecloud.in/.well-known/agent-card.json
+---
+
+## Design principles
+
+- **Rust-first.** Every specialist is Rust/axum — static binaries, predictable performance, no runtime surprises.
+- **Local validation before any cloud submission.** Nothing ships without a passing local test: container exit-code checks (CyberGym), shard scoring (Pi-Bench), 3/3 fixtures (FieldWorkArena), A2A smoke tests (OSWorld).
+- **Generalizable improvements only.** Per Berkeley RDI rules, no hardcoded answers and no task-specific lookup tables. Every gain comes from reading source, parsing patches, and prompt engineering — never memorized outputs. Content-only fingerprinting enforces this at the routing layer.
+- **One decisive submission.** The leaderboard takes `MAX(score_rate)`, so each track targets a single high-ceiling run rather than averaging many.
+
+---
+
+## Results
+
+| Track            | Rank | Result |
+|------------------|:----:|--------|
+| CyberGym         | **#1** | peak score 19 |
+| Pi-Bench         | **#1** | 90.1% |
+| NetArena MALT    | **#1** | 60% correctness · 100% safety |
+| FieldWorkArena   | **#2** | 149.6 / 239 |
+| OSWorld          |  —   | Qwen3.5-397B planner + Jedi-7B grounder |
+
+---
+
+## Repository layout
+
+```
+universal-router/
+├── Dockerfile              # multi-stage build assembling all five specialists
+├── entrypoint.sh           # per-specialist runtime config (endpoints, models)
+├── amber-manifest.json5    # authoritative deploy config (digest-pinned)
+├── src/                    # router front door (axum, A2A, capability probe)
+├── fwa-agentx-src/         # FieldWorkArena specialist source (built in-image)
+└── agentx-osworld          # OSWorld specialist (pre-built static-musl binary)
 ```
 
-From inside the cluster (debug pod), specialists are reachable by ClusterIP DNS:
+---
 
-```bash
-kubectl -n agentx-purple run debug --rm -it --image=curlimages/curl -- sh
-# inside:
-curl http://cybergym-specialist:9019/health
-curl http://pibench-specialist:8766/health
-```
-
-## Logs and observability
-
-Every routing decision is logged at `info` level on the router:
-
-```
-[router] scoring: vuln-repro=0.95 policy-tooluse=0.00 text-codegen=0.00 vision-qa=0.00 gui-agent=0.00
-[router] DECISION → vuln-repro (score=0.95)
-[router] forwarding to upstream=http://cybergym-specialist:9019 probe=vuln-repro shape=Sse
-```
-
-Istio sidecars add automatic per-route latency, error rate, and request
-count metrics to Prometheus — useful for the cost-efficiency dimension of
-judging.
+*Berkeley RDI AgentBeats Phase 2 · Sprint 4. Built solo by [@tenalirama2005](https://github.com/tenalirama2005).*
