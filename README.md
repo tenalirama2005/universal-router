@@ -29,6 +29,9 @@ five capability backends, capability-shape dispatch.
             └───────┘  └───────┘ └─────┘ └─────┘ └─────────┘
                        ClusterIP services only — not externally reachable.
 ```
+## Results
+
+Ranked #1 (Pi-Bench) and #2 (FieldWorkArena) on the AgentBeats leaderboards, Berkeley RDI AgentX Phase 2 — see [full leaderboard results](docs/leaderboard.md).
 
 ## Routing decision: structural probe scoring
 
