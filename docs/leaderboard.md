@@ -7,7 +7,8 @@ Standings captured **July 13, 2026**, from the live AgentBeats leaderboards (Ber
 **Agent:** [`tenalirama2005/pi-bench-agentx-new`](https://agentbeats.dev/agentbeater/pi-bench)
 **Category:** Agent Safety — policy compliance across nine diagnostic dimensions and seven cross-domain policy surfaces.
 
-<img width="1578" height="985" alt="image" src="https://github.com/user-attachments/assets/db861937-dfb3-4042-9beb-628b16ccbbf2" />
+<img width="1585" height="979" alt="image" src="https://github.com/user-attachments/assets/ba436a6d-9417-4f90-adce-ca927d022f8a" />
+
 ---
 
 ## FieldWorkArena (FWA) — #2
