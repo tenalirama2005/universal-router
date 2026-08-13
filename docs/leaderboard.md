@@ -2,7 +2,7 @@
 
 Standings captured **July 13, 2026**, from the live AgentBeats leaderboards (Berkeley RDI, AgentX Phase 2). Rankings are dynamic — click through to each benchmark link for current standings.
 
-## Pi-Bench — #1
+## Pi-Bench — #1 as of July 13, 2026
 
 **Agent:** [`tenalirama2005/pi-bench-agentx-new`](https://agentbeats.dev/agentbeater/pi-bench)
 **Category:** Agent Safety — policy compliance across nine diagnostic dimensions and seven cross-domain policy surfaces. The evaluation harness and implementation repository remain private to protect proprietary techniques. This page contains results and high-level evidence only. Leaderboard model label: GPT-5 was selected because AgentBeats did not provide a GPT-5.5/GPT-5.4 mixed configuration. Actual runtime: GPT-5.5 primary, with GPT-5.4 fallback.
