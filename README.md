@@ -35,6 +35,9 @@ flowchart TD
     FWA --> OUT
     OSW --> OUT
 ```
+## Results
+
+Ranked #1 (Pi-Bench) and #2 (FieldWorkArena) on the AgentBeats leaderboards, Berkeley RDI AgentX Phase 2 — see [full leaderboard results](docs/leaderboard.md).
 
 A thin axum front door receives A2A tasks on the public port and forwards each to one of five specialist backends, selected by a **capability probe** over the task content:
 
