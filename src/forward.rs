@@ -56,11 +56,12 @@ pub async fn forward(
     let status = resp.status();
     if !status.is_success() {
         let text = resp.text().await.unwrap_or_default();
+        let preview: String = text.chars().take(200).collect();
         warn!(
             "[router] upstream non-2xx probe={} status={} body_preview={}",
             probe_name,
             status,
-            &text[..text.len().min(200)]
+            &preview
         );
         return error_json(
             StatusCode::BAD_GATEWAY,
